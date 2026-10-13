@@ -137,6 +137,8 @@ label.lbl input{margin-top:4px}
 .pcom{background:#0a0a0a;color:#fff;border-radius:12px;padding:12px}.pcom small{display:block;color:rgba(255,255,255,.6);font-size:11px}.pcom b{font-size:24px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.pcom b span{font-size:12px;color:rgba(255,255,255,.6);font-weight:600;margin-left:3px}.pcom em{display:block;font-style:normal;color:#c6f432;font-size:12px;margin-top:2px}
 .prow{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--line)}.prow:last-child{border-bottom:0}.prow span{color:var(--mute)}.prow b{font-variant-numeric:tabular-nums;text-align:right}.prow b.fpos{color:#15803d}.prow b.fneg{color:#b91c1c}
 .pbar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--s2)}.pbar i{display:block;height:100%}.pleg{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--mute)}.pleg span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;background:var(--c)}
+.pdesc{background:var(--s2);border-radius:12px;padding:10px 12px}.pdesc small{display:block;font-size:11px;color:var(--mute);font-weight:600;margin-bottom:3px}.pdesc p{margin:0;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.ptop2{flex-wrap:wrap}.ptop2 b{white-space:normal!important;overflow:visible!important;flex:1 1 140px}
 .pprev{background:var(--s2);border-radius:14px;padding:12px;margin:4px 0 10px}.pprev .prow{border-bottom-color:var(--line)}
 .pnote{background:#fef3c7;color:#78350f;border-radius:12px;padding:12px;font-size:13px;margin-bottom:12px}
 @media(min-width:821px){nav{justify-content:center}}
@@ -303,7 +305,7 @@ button,nav,.chip,.seg button,.st,.mfab,.fab{-webkit-user-select:none;user-select
  <span class="lbl" id="plcl">Custo para a empresa</span><div class="money"><span>R$</span><input id="plcost" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal"></div>
  <span class="lbl">Comissão do vendedor (%)</span><div class="money"><span>%</span><input id="plpct" type="number" step="0.1" min="0" max="100" placeholder="0" inputmode="decimal"></div>
  <div class="pprev" id="plprev"></div>
- <textarea id="plobs" rows="2" placeholder="Observações (opcional, ex.: o que está incluso)"></textarea><div class="err" id="plerr"></div>
+ <span class="lbl">Descrição (o funcionário vê no card)</span><textarea id="plobs" rows="4" placeholder="Ex.: o que está incluso, prazo de entrega..."></textarea><div class="err" id="plerr"></div>
  <div class="acts"><button class="btn g" id="pldel">Excluir</button><button class="btn" id="plsave">Salvar</button></div></div></div>
 <div id="report"></div>
 <div class="pop" id="acct" hidden><div class="sheet" role="dialog" aria-label="Minha conta">
@@ -668,10 +670,10 @@ function plRender(){const adm=isAdm(),list=S.plans,men=list.filter(x=>x.recurren
  [["mensal","Comissão todo mês",men],["unica","Comissão só uma vez",uni]].forEach(([k,tit,a])=>{if(!a.length)return;
   const gh=mk("div","cgh");gh.append(mk("b",0,tit),mk("span",0,a.length+(a.length===1?" item":" itens")));gh.style.gridColumn="1/-1";el.appendChild(gh);
   a.slice().sort((x,y)=>(x.name||"").localeCompare(y.name||"")).forEach(x=>{const c=plCalc(x),m=k==="mensal",cd=mk("div","pcard"+(adm?" lk":"")),top=mk("div","cct");
-   top.append(mk("b",0,x.name),pill(PK[x.kind]||"Plano","none"),pill(m?"Todo mês":"Uma vez",m?"good":"warn"));
+   top.classList.add("ptop2");top.append(mk("b",0,x.name),pill(PK[x.kind]||"Plano","none"),pill(m?"Todo mês":"Uma vez",m?"good":"warn"));
    const cm=mk("div","pcom"),cb=mk("b");cb.append(document.createTextNode(FM(c.com)));if(m)cb.appendChild(mk("span",0,"/mês"));
    cm.append(mk("small",0,"Você ganha por venda"),cb,mk("em",0,m?"Enquanto o cliente pagar · "+FM(c.com*12)+" em 12 meses":"Pago uma única vez, na venda"));
-   cd.append(top,cm,plRows(c,m),plBar(c));if(x.note)cd.appendChild(mk("p","cnote",x.note));if(adm)cd.onclick=()=>openPlan(x);el.appendChild(cd)})});
+   cd.append(top,cm,plRows(c,m),plBar(c));if(x.note){const ds=mk("div","pdesc");ds.append(mk("small",0,"Descrição"),mk("p",0,x.note));cd.appendChild(ds)}if(adm)cd.onclick=()=>openPlan(x);el.appendChild(cd)})});
  if(!el.children.length&&!S.plErr)el.appendChild(mk("p","empty-s",adm?"Nenhum plano ainda. Toque em “Adicionar plano ou produto” para começar.":"Nenhum plano cadastrado ainda."))}
 function plSegs(){seg("plkind",PK,()=>S.pkind,k=>{S.pkind=k;plSegs()});seg("plrec",PR,()=>S.prec,k=>{S.prec=k;plSegs()});
  const m=S.prec==="mensal";$("plpl").textContent=m?"Preço mensal (o cliente paga todo mês)":"Preço de venda";$("plcl").textContent=m?"Custo mensal para a empresa":"Custo para a empresa";plPrev()}
