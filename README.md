@@ -1,5 +1,8 @@
 # Cleam Digital · Prospecção
 
-App de controle da equipe (vendas, mapa, metas, painel, finanças, clientes e comissões).
+App de controle da equipe (vendas, agenda, metas, painel, finanças, clientes e comissões).
 
-O app é o `index.html`. O `planos.sql` cria a tabela da aba Comissões no Supabase (rodar uma vez no SQL Editor).
+O app é o `index.html`. Os arquivos `.sql` criam as tabelas no Supabase (rodar uma vez cada no SQL Editor):
+
+- `planos.sql`: aba Comissões.
+- `agenda.sql`: aba Agenda (cada pessoa só vê a própria).
