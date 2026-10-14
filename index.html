@@ -147,6 +147,17 @@ label.lbl input{margin-top:4px}
 .acard{background:var(--sf);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px}.acard b{font-size:14px;overflow-wrap:anywhere}.acard .cline small.late{color:#b91c1c;font-weight:700}
 .amv{display:flex;gap:6px}.amv button{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px;font:inherit;font-size:12px;cursor:pointer;color:var(--ink)}
 .acal{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:1px dashed var(--ink);background:none;border-radius:12px;padding:11px;font:inherit;font-weight:600;cursor:pointer;margin:0 0 12px;color:var(--ink)}
+.amn{display:flex;align-items:center;gap:8px;margin-bottom:10px}.amn b{flex:1;text-align:center;font-size:16px}.amn b:first-letter{text-transform:uppercase}
+.acal2{background:var(--sf);border:1px solid var(--line);border-radius:18px;padding:10px;margin-bottom:12px}
+.agrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.agrid .wd{text-align:center;font-size:11px;font-weight:700;color:var(--mute);padding:4px 0 6px}
+.acell{border:1px solid transparent;background:none;border-radius:12px;min-height:64px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font:inherit;color:var(--ink);min-width:0}
+.acell:hover{background:var(--s2)}.acell .n{font-size:14px;font-weight:600;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;font-variant-numeric:tabular-nums}
+.acell.out{color:var(--mute);opacity:.45}.acell.td .n{background:#0a0a0a;color:#fff}.acell.sel{border-color:#0a0a0a;background:var(--s2)}
+.acell .dots{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:100%}.acell .dots i{width:6px;height:6px;border-radius:50%;background:#0a0a0a}.acell .dots i.done{background:#a3a3a3}.acell .dots i.late{background:#ef4444}
+.acell .ev{display:none;width:100%;font-size:11px;line-height:1.25;text-align:left;background:var(--s2);border-radius:6px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.acell .ev.done{text-decoration:line-through;color:var(--mute)}
+.acell .more{display:none;font-size:10.5px;color:var(--mute)}
+@media(min-width:821px){.acell{min-height:96px;align-items:stretch;border-color:var(--line)}.acell.sel{border-color:#0a0a0a}.acell .n{align-self:flex-end}.acell .ev,.acell .more{display:block}.acell .dots{display:none}.acell.sel .ev{background:var(--sf)}}
+.aaddd{width:100%;margin-top:8px}
 #p-plans{padding-bottom:90px}.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
 .pcard{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--sf);display:flex;flex-direction:column;gap:10px;min-width:0}.pcard.lk{cursor:pointer;transition:transform .15s,box-shadow .15s}.pcard.lk:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.07)}
 .pcom{background:#0a0a0a;color:#fff;border-radius:12px;padding:12px}.pcom small{display:block;color:rgba(255,255,255,.6);font-size:11px}.pcom b{font-size:24px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.pcom b span{font-size:12px;color:rgba(255,255,255,.6);font-weight:600;margin-left:3px}.pcom em{display:block;font-style:normal;color:#c6f432;font-size:12px;margin-top:2px}
@@ -729,7 +740,7 @@ $("pldel").onclick=()=>{if(S.pe&&confirm("Excluir "+S.pe.name+"?")){$("pldlg").h
 /* ---------- AGENDA ---------- */
 const AK={compromisso:"Compromisso",demanda:"Demanda"},AP={baixa:"Baixa",media:"Média",alta:"Alta"},AS={todo:"A fazer",doing:"Fazendo",done:"Feito"};
 const DSEM=["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
-S.ag=[];S.agErr=null;S.av="agenda";S.awk=0;S.ae=null;S.akind="compromisso";S.apri="media";S.ast="todo";
+S.ag=[];S.agErr=null;S.av="agenda";S.awk=0;S.amo=0;S.asel=null;S.ae=null;S.akind="compromisso";S.apri="media";S.ast="todo";
 async function agLoad(){const r=await sb.from("agenda").select("*").eq("owner",S.me.id).order("date",{ascending:true});S.agErr=r.error?r.error.message:null;S.ag=r.error?[]:r.data}
 const hm=t=>t?String(t).slice(0,5):"";
 const agAddD=(d,n)=>{const x=new Date(d+"T12:00");x.setDate(x.getDate()+n);return ymd(x)};
@@ -756,6 +767,24 @@ function agWeek(el){const st=agWkStart(S.awk),en=agAddD(st,6),t=today(),nav=mk("
   h.append(mk("b",0,dLabel(d)));if(d===t)h.appendChild(pill("Hoje","good"));h.appendChild(mk("small",0,list.length?list.length+(list.length===1?" item":" itens"):""));box.appendChild(h);
   if(list.length)list.forEach(x=>box.appendChild(agItem(x)));else box.appendChild(mk("div","aempty","Livre"));
   box.ondblclick=e=>{if(e.target===box||e.target.classList.contains("aempty"))openAg(null,d)};el.appendChild(box)}}
+function agMonth(el){const t=today(),base=new Date();base.setDate(1);base.setHours(12);base.setMonth(base.getMonth()+S.amo);const Y=base.getFullYear(),M=base.getMonth();
+ if(!S.asel)S.asel=t;const nav=mk("div","amn"),pv=mk("button","btn g sm","‹"),nx=mk("button","btn g sm","›"),hj=mk("button","btn g sm","Hoje");pv.setAttribute("aria-label","Mês anterior");nx.setAttribute("aria-label","Próximo mês");
+ nav.append(pv,mk("b",0,MES[M]+" de "+Y),nx,hj);pv.onclick=()=>{S.amo--;agRender()};nx.onclick=()=>{S.amo++;agRender()};hj.onclick=()=>{S.amo=0;S.asel=t;agRender()};el.appendChild(nav);
+ const box=mk("div","acal2"),g=mk("div","agrid");["D","S","T","Q","Q","S","S"].forEach(w=>g.appendChild(mk("div","wd",w)));
+ const first=new Date(Y,M,1,12),st=agAddD(ymd(first),-first.getDay());
+ for(let i=0;i<42;i++){const d=agAddD(st,i),inM=Number(d.slice(5,7))-1===M,list=S.ag.filter(x=>x.date===d).sort(aSort);
+  if(i===35&&!inM)break;
+  const c=mk("button","acell"+(inM?"":" out")+(d===t?" td":"")+(d===S.asel?" sel":""));c.type="button";c.appendChild(mk("span","n",String(Number(d.slice(8)))));
+  const dots=mk("span","dots");list.slice(0,4).forEach(x=>dots.appendChild(mk("i",x.status==="done"?"done":isLate(x)?"late":"")));c.appendChild(dots);
+  list.slice(0,3).forEach(x=>c.appendChild(mk("span","ev"+(x.status==="done"?" done":""),(x.kind==="compromisso"&&!x.all_day&&x.start_time?hm(x.start_time)+" ":"")+x.title)));
+  if(list.length>3)c.appendChild(mk("span","more","+"+(list.length-3)+" mais"));
+  c.onclick=()=>{S.asel=d;if(!inM)S.amo+=d<ymd(first)?-1:1;agRender()};g.appendChild(c)}
+ box.appendChild(g);el.appendChild(box);
+ if(S.amo===0){const late=S.ag.filter(x=>isLate(x)).sort(aSort);if(late.length){const d=mk("div","aday");const h=mk("div","adh");h.append(mk("b",0,"Atrasados"),pill(String(late.length),"bad"));d.appendChild(h);late.forEach(x=>d.appendChild(agItem(x)));el.appendChild(d)}}
+ const d=S.asel,list=S.ag.filter(x=>x.date===d).sort(aSort),day=mk("div","aday"+(d===t?" td":"")),h=mk("div","adh");h.append(mk("b",0,dLabel(d)));if(d===t)h.appendChild(pill("Hoje","good"));
+ h.appendChild(mk("small",0,list.length?list.length+(list.length===1?" item":" itens"):""));day.appendChild(h);
+ if(list.length)list.forEach(x=>day.appendChild(agItem(x)));else day.appendChild(mk("div","aempty","Nada marcado neste dia."));
+ const ad=mk("button","btn g sm aaddd","+ Adicionar neste dia");ad.onclick=()=>openAg(null,d);day.appendChild(ad);el.appendChild(day)}
 function agBoard(el){const b=mk("div","abrd"),t=today();const keys=Object.keys(AS);
  keys.forEach((k,i)=>{let list=S.ag.filter(x=>x.kind==="demanda"&&x.status===k).sort(aSort);const col=mk("div","acol"),h=mk("h4");h.append(document.createTextNode(AS[k]),mk("span",0,String(list.length)));col.appendChild(h);
   if(k==="done")list=list.slice(-20).reverse();
@@ -765,10 +794,10 @@ function agBoard(el){const b=mk("div","abrd"),t=today();const keys=Object.keys(A
    const mv=mk("div","amv");if(i>0){const l=mk("button",0,"‹ "+AS[keys[i-1]]);l.onclick=e=>{e.stopPropagation();agSet(x,{status:keys[i-1]})};mv.appendChild(l)}
    if(i<2){const r=mk("button",0,AS[keys[i+1]]+" ›");r.onclick=e=>{e.stopPropagation();agSet(x,{status:keys[i+1]})};mv.appendChild(r)}c.appendChild(mv);c.onclick=()=>openAg(x);col.appendChild(c)});
   if(!list.length)col.appendChild(mk("div","aempty",k==="done"?"Nada concluído ainda.":"Nenhuma demanda."));b.appendChild(col)});el.appendChild(b)}
-function agRender(){seg("aview",{agenda:"Semana",demandas:"Demandas"},()=>S.av,k=>{S.av=k;agRender()});agHero();
+function agRender(){seg("aview",{agenda:"Calendário",demandas:"Demandas"},()=>S.av,k=>{S.av=k;agRender()});agHero();
  const wn=$("a-warn");wn.textContent="";if(S.agErr)wn.appendChild(mk("div","pnote","A agenda ainda não existe no banco. O administrador precisa rodar o arquivo agenda.sql no SQL Editor do Supabase."));
  $("anew").querySelector("span").textContent=S.av==="demandas"?"Nova demanda":"Novo compromisso";$("anew").hidden=!!S.agErr;
- const el=$("a-body");el.textContent="";if(S.av==="demandas")agBoard(el);else agWeek(el)}
+ const el=$("a-body");el.textContent="";if(S.av==="demandas")agBoard(el);else agMonth(el)}
 function agForm(){const c=S.akind==="compromisso";$("agdl").firstChild.textContent=c?"Data":"Prazo (opcional)";$("agallw").hidden=!c;$("agtimes").hidden=c&&$("agall").checked;
  $("agstart").parentNode.firstChild.textContent=c?"Início":"Horário (opcional)";$("agend").parentNode.hidden=!c;$("agst").previousElementSibling.hidden=c;$("agst").hidden=c;
  seg("agkind",AK,()=>S.akind,k=>{S.akind=k;agForm()});seg("agpri",AP,()=>S.apri,k=>{S.apri=k});seg("agst",AS,()=>S.ast,k=>{S.ast=k});
