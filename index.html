@@ -133,6 +133,15 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-fon
 .cnote{margin:0;font-size:12px;color:var(--mute);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 label.lbl input{margin-top:4px}
 #p-agenda{padding-bottom:90px}
+.cobday{width:40px;height:40px;border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;background:var(--s2);line-height:1}
+.cobday b{font-size:16px;font-variant-numeric:tabular-nums}.cobday small{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-top:2px}
+.cobday.late{background:#fee2e2;color:#7f1d1d}.cobday.today{background:#fef3c7;color:#78350f}.cobday.paid{background:#dcfce7;color:#14532d}
+.cobday.late small,.cobday.today small,.cobday.paid small{color:inherit;opacity:.75}
+.cobr{flex-wrap:wrap}.cobr .ft{flex:1 1 160px}.cobx{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cobx .cbtn.wa{background:#22c55e;color:#03230f}.cobx .cbtn.wa:hover{background:#16a34a;color:#fff}
+.cobr.pd .ft b{color:var(--mute)}.cobsum{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:-4px 0 6px;font-size:13px;color:var(--mute)}.cobsum b{font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.cobbar{height:6px;border-radius:99px;background:var(--s2);overflow:hidden;margin-bottom:6px}.cobbar i{display:block;height:100%;background:#22c55e;border-radius:99px;width:0}
+#cob-msgw{background:var(--s2);border-radius:12px;padding:12px;margin-bottom:12px}#cob-msgw textarea{background:var(--sf)}#cob-msgw .note{margin:0 0 8px}
 .awk{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}.awk b{flex:1;text-align:center;font-size:14px;min-width:120px}
 .aday{background:var(--sf);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}.aday.td{border-color:#0a0a0a;box-shadow:0 0 0 1px #0a0a0a}.aday.past{opacity:.72}
 .adh{display:flex;align-items:center;gap:8px;margin-bottom:6px}.adh b{font-size:14px}.adh small{color:var(--mute);font-size:12px;margin-left:auto}
@@ -286,6 +295,11 @@ button,nav,.chip,.seg button,.st,.mfab,.fab{-webkit-user-select:none;user-select
 <div id="p-clients">
  <div class="ptop"><div><h2 class="pt">Clientes</h2><p class="note">Só você vê os seus clientes.</p></div></div>
  <section class="hero" id="c-hero"></section>
+ <div id="cob-warn"></div>
+ <div class="card" id="cob"><div class="ch"><h3 id="cob-t">Cobranças do mês</h3><div class="pact"><button class="btn g sm" id="cob-edit" type="button">Editar mensagem</button></div></div>
+  <div id="cob-msgw" hidden><p class="note">A mensagem que abre no WhatsApp. Use {nome}, {valor}, {vencimento} e {mes} para preencher com os dados de cada cliente.</p><textarea id="cob-msg" rows="4"></textarea>
+   <div class="pact"><button class="btn g sm" id="cob-reset" type="button">Voltar ao padrão</button><button class="btn sm" id="cob-save" type="button">Salvar mensagem</button></div></div>
+  <div id="cob-sum"></div><div id="cob-list"></div></div>
  <div class="card"><div class="cfil"><input id="cq" type="search" placeholder="Buscar cliente ou @instagram"><div class="seg mini" id="ckf"></div></div><div class="chips" id="csf"></div><div id="c-list"></div></div>
  <button class="fab" id="cnew" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo cliente</button>
 </div>
@@ -336,6 +350,7 @@ button,nav,.chip,.seg button,.st,.mfab,.fab{-webkit-user-select:none;user-select
  <span class="lbl">Setor</span><div class="svc" id="csv"></div>
  <span class="lbl">Tipo de cliente</span><div class="seg" id="ckind"></div>
  <span class="lbl" id="cvl">Valor mensal</span><div class="money"><span>R$</span><input id="cval" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal"></div>
+ <label class="lbl" id="cduew">Dia do vencimento (todo mês)<input id="cdue" type="number" min="1" max="31" step="1" inputmode="numeric" placeholder="Ex.: 10"></label>
  <span class="lbl">Contrato</span><div class="seg" id="cct"></div>
  <div class="two" id="cdates"><label class="lbl">Início do contrato<input id="cstart" type="date"></label><label class="lbl">Término do contrato<input id="cend" type="date"></label></div>
  <div class="two"><input id="cphone" type="tel" placeholder="Telefone / WhatsApp"><input id="cig" placeholder="@instagram" autocapitalize="off"></div>
@@ -687,15 +702,16 @@ function contractInfo(c){if(c.contract==="vitalicio")return{t:"Contrato vitalíc
 function cliTiles(){const el=$("csv");el.textContent="";Object.entries(SV).forEach(([k,l])=>{const b=mk("button","st"+(S.csec===k?" on":""));b.type="button";b.style.setProperty("--c",SC[k]);
  const ic=mk("span","sti");ic.innerHTML=icon(k,20);b.append(ic,mk("span",0,l));b.onclick=()=>{S.csec=k;cliTiles()};el.appendChild(b)})}
 function cliSegs(){seg("ckind",KT,()=>S.ckind,k=>{S.ckind=k;cliSegs()});seg("cct",CT,()=>S.cct,k=>{S.cct=k;cliSegs()});
- $("cvl").textContent=S.ckind==="mensal"?"Valor mensal":"Valor do serviço";$("cdates").hidden=S.cct==="sem";$("cend").parentNode.hidden=S.cct!=="prazo"}
+ $("cvl").textContent=S.ckind==="mensal"?"Valor mensal":"Valor do serviço";$("cdates").hidden=S.cct==="sem";$("cduew").hidden=S.ckind!=="mensal"||!!S.cobErr;$("cend").parentNode.hidden=S.cct!=="prazo"}
 function openCli(c){S.ce=c||null;$("ct").textContent=c?"Editar cliente":"Novo cliente";$("cname").value=c?c.name:"";$("cval").value=c?c.value:"";$("cstart").value=c&&c.start_date||"";$("cend").value=c&&c.end_date||"";
- $("cphone").value=c&&c.phone||"";$("cig").value=c&&c.instagram||"";$("cnote").value=c&&c.note||"";S.csec=c?c.sector:(S.cf.sec!=="all"?S.cf.sec:"social");S.ckind=c?c.kind:"mensal";S.cct=c?c.contract:"prazo";
+ $("cphone").value=c&&c.phone||"";$("cig").value=c&&c.instagram||"";$("cnote").value=c&&c.note||"";$("cdue").value=c&&c.due_day||"";S.csec=c?c.sector:(S.cf.sec!=="all"?S.cf.sec:"social");S.ckind=c?c.kind:"mensal";S.cct=c?c.contract:"prazo";
  $("cerr").textContent="";$("cdel").hidden=!c;cliTiles();cliSegs();$("clidlg").hidden=false;if(!c)setTimeout(()=>$("cname").focus(),250)}
 $("cnew").onclick=()=>openCli(null);$("cclose").onclick=()=>$("clidlg").hidden=true;$("clidlg").onclick=e=>{if(e.target.id==="clidlg")$("clidlg").hidden=true};
 $("csave").onclick=async()=>{const err=t=>$("cerr").textContent=t,name=$("cname").value.trim();if(!name)return err("Informe o nome do cliente.");
  const value=parseFloat($("cval").value)||0,body={name,sector:S.csec,kind:S.ckind,value,contract:S.cct,start_date:S.cct==="sem"?null:$("cstart").value||null,end_date:S.cct==="prazo"?$("cend").value||null:null,
   phone:$("cphone").value.trim()||null,instagram:igUser($("cig").value)||null,note:$("cnote").value.trim()||null};
  if(body.end_date&&body.start_date&&body.end_date<body.start_date)return err("O término não pode ser antes do início.");
+ if(!S.cobErr){const dd=$("cdue").value.trim();if(S.ckind==="mensal"&&dd){const n=parseInt(dd,10);if(!(n>=1&&n<=31))return err("O dia do vencimento vai de 1 a 31.");body.due_day=n}else body.due_day=null}
  const b=$("csave");b.disabled=true;const r=S.ce?await sb.from("clients").update(body).eq("id",S.ce.id):await sb.from("clients").insert({...body,owner:S.me.id});b.disabled=false;
  if(r.error)return err("Não foi possível salvar: "+r.error.message);$("clidlg").hidden=true;load()};
 $("cdel").onclick=()=>{if(S.ce&&confirm("Excluir o cliente "+S.ce.name+"?")){$("clidlg").hidden=true;run(sb.from("clients").delete().eq("id",S.ce.id))}};
@@ -719,13 +735,54 @@ function cliRender(){const mine=S.cl.filter(c=>c.owner===S.me.id),men=mine.filte
   const g=mk("div","cgrid");a.forEach(c=>{const cd=mk("div","ccard"),top=mk("div","cct"),ci=contractInfo(c);cd.style.setProperty("--c",SC[k]);
    top.append(mk("b",0,c.name),pill(c.kind==="mensal"?"Mensal":"Serviço",c.kind==="mensal"?"good":"none"));
    const v=mk("div","cv");v.append(document.createTextNode(FM(c.value)));if(c.kind==="mensal")v.appendChild(mk("small",0,"/mês"));
-   const ct=mk("div","cline");ct.append(pill(ci.t,ci.c));if(c.start_date&&c.contract!=="sem")ct.appendChild(mk("small",0,"Início "+BR(c.start_date)));
+   const ct=mk("div","cline");ct.append(pill(ci.t,ci.c));if(c.start_date&&c.contract!=="sem")ct.appendChild(mk("small",0,"Início "+BR(c.start_date)));if(c.kind==="mensal"&&c.due_day)ct.appendChild(mk("small",0,"Vence dia "+c.due_day));
    const ac=mk("div","cact");
    if(waNum(c.phone).length>=12){const a1=mk("a","cbtn","WhatsApp");a1.href="https://wa.me/"+waNum(c.phone);a1.target="_blank";a1.rel="noopener";a1.onclick=e=>e.stopPropagation();ac.appendChild(a1)}
    if(c.phone){const a2=mk("a","cbtn",c.phone);a2.href="tel:"+c.phone.replace(/[^\d+]/g,"");a2.onclick=e=>e.stopPropagation();ac.appendChild(a2)}
    if(c.instagram){const a3=mk("a","cbtn","@"+c.instagram);a3.href="https://instagram.com/"+encodeURIComponent(c.instagram);a3.target="_blank";a3.rel="noopener";a3.onclick=e=>e.stopPropagation();ac.appendChild(a3)}
    cd.append(top,v,ct);if(ac.children.length)cd.appendChild(ac);if(c.note)cd.appendChild(mk("p","cnote",c.note));cd.onclick=()=>openCli(c);g.appendChild(cd)});el.appendChild(g)});
- if(!el.children.length)el.appendChild(mk("p","empty-s",mine.length?"Nenhum cliente com esses filtros.":"Você ainda não cadastrou clientes. Toque em “Novo cliente” para começar."))}
+ if(!el.children.length)el.appendChild(mk("p","empty-s",mine.length?"Nenhum cliente com esses filtros.":"Você ainda não cadastrou clientes. Toque em “Novo cliente” para começar."));cobRender()}
+
+/* ---------- COBRANÇAS ---------- */
+const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const COB_PADRAO="Olá, {nome}! Tudo bem? Passando para lembrar que a mensalidade de {mes} da Cleam Digital, no valor de {valor}, vence em {vencimento}. Qualquer dúvida, estou à disposição!";
+const COB_KEY="cleam-cob-msg";S.cobErr=null;
+async function cobProbe(){const r=await sb.from("clients").select("due_day,paid_months").limit(1);S.cobErr=r.error?r.error.message:null}
+function cobMsg(){try{return localStorage.getItem(COB_KEY)||COB_PADRAO}catch(e){return COB_PADRAO}}
+function cobDue(c,now){const Y=now.getFullYear(),M=now.getMonth(),last=new Date(Y,M+1,0).getDate();return new Date(Y,M,Math.min(c.due_day,last),12)}
+function cobText(c,due,diff,mesNome){const dt=pad(due.getDate())+"/"+pad(due.getMonth()+1),v=diff===0?dt+" (hoje)":diff===1?dt+" (amanhã)":dt;
+ return cobMsg().replace(/\{nome\}/g,c.name).replace(/\{valor\}/g,FM(c.value)).replace(/\{vencimento\}/g,v).replace(/\{mes\}/g,mesNome)}
+async function cobPay(c,key,paid){const cur=Array.isArray(c.paid_months)?c.paid_months:[],next=paid?[...new Set([...cur,key])]:cur.filter(m=>m!==key);
+ c.paid_months=next;cobRender();const r=await sb.from("clients").update({paid_months:next}).eq("id",c.id);if(r.error){c.paid_months=cur;cobRender();alert("Erro: "+r.error.message)}}
+$("cob-edit").onclick=()=>{const w=$("cob-msgw");w.hidden=!w.hidden;if(!w.hidden){$("cob-msg").value=cobMsg();$("cob-msg").focus()}};
+$("cob-save").onclick=()=>{const t=$("cob-msg").value.trim();try{if(t&&t!==COB_PADRAO)localStorage.setItem(COB_KEY,t);else localStorage.removeItem(COB_KEY)}catch(e){}$("cob-msgw").hidden=true;cobRender()};
+$("cob-reset").onclick=()=>{$("cob-msg").value=COB_PADRAO};
+function cobRender(){const wn=$("cob-warn"),card=$("cob");wn.textContent="";
+ if(S.cobErr){card.hidden=true;wn.appendChild(mk("div","pnote","Para usar as cobranças pelo WhatsApp, rode o arquivo cobranca.sql no SQL Editor do Supabase e recarregue o app."));return}
+ const now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate(),12),key=today().slice(0,7),mesNome=MESES[now.getMonth()];
+ const men=S.cl.filter(c=>c.owner===S.me.id&&c.kind==="mensal"),withDay=men.filter(c=>c.due_day),noDay=men.filter(c=>!c.due_day);
+ card.hidden=!men.length;if(!men.length)return;
+ $("cob-t").textContent="Cobranças de "+mesNome;
+ const rows=withDay.map(c=>{const due=cobDue(c,now),diff=Math.round((due-t0)/864e5),paid=(c.paid_months||[]).includes(key);
+  return{c,due,diff,paid,g:paid?"paid":diff<0?"late":diff===0?"today":diff<=7?"soon":"later"}}).sort((a,b)=>a.due-b.due||a.c.name.localeCompare(b.c.name));
+ const tot=sumv(withDay),rec=sumv(rows.filter(r=>r.paid).map(r=>r.c)),nl=rows.filter(r=>r.g==="late").length,nt=rows.filter(r=>r.g==="today").length;
+ const sm=$("cob-sum");sm.textContent="";if(withDay.length){const l=mk("div","cobsum"),b=mk("b",0,FM(rec));l.append(b,mk("span",0,"recebidos de "+FM(tot)+" no mês"));
+  const ps=mk("div","pills");ps.style.marginLeft="auto";if(nl)ps.appendChild(pill(nl+(nl===1?" atrasado":" atrasados"),"bad"));if(nt)ps.appendChild(pill(nt+(nt===1?" vence hoje":" vencem hoje"),"warn"));
+  if(!nl&&!nt&&rec>=tot)ps.appendChild(pill("Tudo pago","ok"));l.appendChild(ps);
+  const bar=mk("div","cobbar"),f=mk("i");bar.appendChild(f);sm.append(l,bar);growP(f,"cob-bar",tot?rec/tot*100:0,"width")}
+ const el=$("cob-list");el.textContent="";
+ const G=[["late","Atrasados"],["today","Vencem hoje"],["soon","Próximos 7 dias"],["later","Mais adiante no mês"],["paid","Pagos"]];
+ G.forEach(([g,lab])=>{const a=rows.filter(r=>r.g===g);if(!a.length)return;el.appendChild(mk("div","fday",lab));
+  a.forEach(({c,due,diff,paid})=>{const r=mk("div","fi cobr"+(paid?" pd":"")),d=mk("div","cobday "+(paid?"paid":g==="late"?"late":g==="today"?"today":""));
+   d.append(mk("b",0,String(due.getDate())),mk("small",0,MESES[due.getMonth()].slice(0,3)));
+   const st=paid?"Pago":diff<0?"Venceu há "+(-diff===1?"1 dia":-diff+" dias"):diff===0?"Vence hoje":diff===1?"Vence amanhã":"Vence em "+diff+" dias";
+   const tx=mk("div","ft");tx.append(mk("b",0,c.name),mk("small",0,FM(c.value)+" · "+st));
+   const ax=mk("div","cobx");
+   if(!paid){if(waNum(c.phone).length>=12){const w=mk("a","cbtn wa","Cobrar no WhatsApp");w.href="https://wa.me/"+waNum(c.phone)+"?text="+encodeURIComponent(cobText(c,due,diff,mesNome));w.target="_blank";w.rel="noopener";ax.appendChild(w)}
+    else{const n=mk("button","chip","Adicionar WhatsApp");n.type="button";n.onclick=()=>openCli(c);ax.appendChild(n)}}
+   const pb=mk("button","chip"+(paid?"":" on"),paid?"Desfazer":"Marcar pago");pb.type="button";pb.onclick=()=>cobPay(c,key,!paid);ax.appendChild(pb);
+   r.append(d,tx,ax);el.appendChild(r)})});
+ if(noDay.length){const p=mk("p","note",(noDay.length===1?"1 cliente mensal está":noDay.length+" clientes mensais estão")+" sem dia de vencimento: "+noDay.map(c=>c.name).join(", ")+". Toque no cliente abaixo e preencha o dia.");p.style.marginTop="12px";el.appendChild(p)}}
 
 /* ---------- PLANOS E COMISSÕES ---------- */
 const PK={plano:"Plano",produto:"Produto"},PR={mensal:"Todo mês",unica:"Só uma vez"};
@@ -1057,7 +1114,7 @@ function go(m){if(MAPM.includes(m))m="agenda";if(m==="posts")m="sales";if(m==="f
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.m));
 async function all(t,col,asc=true){let out=[];for(let i=0;;i+=1000){const{data,error}=await sb.from(t).select("*").order(col,{ascending:asc}).range(i,i+999);
  if(error){console.warn(t,error.message);break}out=out.concat(data);if(data.length<1000)break}return out}
-async function load(){const[p,pl,t,f,v,g,cl]=await Promise.all([all("profiles","id"),all("places","id"),all("territories","id"),all("finance","created_at",false),all("visits","created_at",false),all("goals","key"),all("clients","created_at",false),plLoad(),agLoad(),igLoad()]);S.cl=cl;
+async function load(){const[p,pl,t,f,v,g,cl]=await Promise.all([all("profiles","id"),all("places","id"),all("territories","id"),all("finance","created_at",false),all("visits","created_at",false),all("goals","key"),all("clients","created_at",false),plLoad(),agLoad(),igLoad(),cobProbe()]);S.cl=cl;
  S.pf=Object.fromEntries(p.map(x=>[x.id,x]));S.pl=pl;S.tr=t;S.fin=f;S.vs=v;S.goals=Object.fromEntries(g.map(x=>[x.key,x]));
  if(!$("acct").hidden)acctRender();if(!$("dlg").hidden&&S.edit&&S.edit.p){S.edit.p=S.pl.find(x=>x.id===S.edit.p.id)||S.edit.p;dlgInfo()}render()}
 let BOOTED=false,RT=null;

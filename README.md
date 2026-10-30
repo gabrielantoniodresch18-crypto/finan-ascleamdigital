@@ -7,3 +7,4 @@ O app é o `index.html`. Os arquivos `.sql` criam as tabelas no Supabase (rodar 
 - `planos.sql`: aba Comissões.
 - `agenda.sql`: aba Agenda (cada pessoa só vê a própria).
 - `postagens.sql`: aba Postagens (cada pessoa só vê os próprios perfis).
+- `cobranca.sql`: cobranças mensais na aba Clientes (dia do vencimento e meses pagos; o botão "Cobrar no WhatsApp" abre a conversa com a mensagem pronta).
