@@ -296,8 +296,12 @@ button,nav,.chip,.seg button,.st,.mfab,.fab{-webkit-user-select:none;user-select
  <div class="ptop"><div><h2 class="pt">Clientes</h2><p class="note">Só você vê os seus clientes.</p></div></div>
  <section class="hero" id="c-hero"></section>
  <div id="cob-warn"></div>
- <div class="card" id="cob"><div class="ch"><h3 id="cob-t">Cobranças do mês</h3><div class="pact"><button class="btn g sm" id="cob-edit" type="button">Editar mensagem</button></div></div>
-  <div id="cob-msgw" hidden><p class="note">A mensagem que abre no WhatsApp. Use {nome}, {valor}, {vencimento} e {mes} para preencher com os dados de cada cliente.</p><textarea id="cob-msg" rows="4"></textarea>
+ <div class="card" id="cob"><div class="ch"><h3 id="cob-t">Cobranças do mês</h3><div class="pact"><button class="btn g sm" id="cob-edit" type="button">Mensagem e Pix</button></div></div>
+  <div id="cob-msgw" hidden><span class="lbl">Seu Pix (vai junto em toda cobrança, com o valor de cada cliente)</span>
+   <div class="two"><select id="pix-tipo" aria-label="Tipo de chave"><option value="cpf">CPF ou CNPJ</option><option value="tel">Celular</option><option value="email">E-mail</option><option value="aleatoria">Chave aleatória</option></select><input id="pix-chave" placeholder="Sua chave Pix" autocapitalize="off"></div>
+   <div class="two"><input id="pix-nome" placeholder="Nome de quem recebe" maxlength="25"><input id="pix-cidade" placeholder="Cidade" maxlength="15"></div>
+   <div class="err" id="pix-err"></div>
+   <p class="note">A mensagem que abre no WhatsApp. Use {nome}, {valor}, {vencimento} e {mes} para preencher com os dados de cada cliente. O Pix entra no fim da mensagem; se quiser em outro lugar, use {pixcopia} (código copia e cola) e {pix} (sua chave).</p><textarea id="cob-msg" rows="4"></textarea>
    <div class="pact"><button class="btn g sm" id="cob-reset" type="button">Voltar ao padrão</button><button class="btn sm" id="cob-save" type="button">Salvar mensagem</button></div></div>
   <div id="cob-sum"></div><div id="cob-list"></div></div>
  <div class="card"><div class="cfil"><input id="cq" type="search" placeholder="Buscar cliente ou @instagram"><div class="seg mini" id="ckf"></div></div><div class="chips" id="csf"></div><div id="c-list"></div></div>
@@ -748,14 +752,33 @@ const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agos
 const COB_PADRAO="Olá, {nome}! Tudo bem? Passando para lembrar que a mensalidade de {mes} da Cleam Digital, no valor de {valor}, vence em {vencimento}. Qualquer dúvida, estou à disposição!";
 const COB_KEY="cleam-cob-msg";S.cobErr=null;
 async function cobProbe(){const r=await sb.from("clients").select("due_day,paid_months").limit(1);S.cobErr=r.error?r.error.message:null}
+const PIX_KEY="cleam-pix";
+function pixGet(){try{return JSON.parse(localStorage.getItem(PIX_KEY)||"null")}catch(e){return null}}
+const pixAscii=s=>(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9 .\-]/g,"").trim();
+function pixChave(t,k){k=(k||"").trim();const d=k.replace(/\D/g,"");
+ if(t==="cpf")return d.length===11||d.length===14?d:null;
+ if(t==="tel"){if(d.length===10||d.length===11)return"+55"+d;if((d.length===12||d.length===13)&&d.startsWith("55"))return"+"+d;return null}
+ if(t==="email")return/^\S+@\S+\.\S+$/.test(k)?k.toLowerCase():null;
+ return/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k)?k.toLowerCase():null}
+function pixCrc(s){let c=0xFFFF;for(let i=0;i<s.length;i++){c^=s.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=c&0x8000?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return c.toString(16).toUpperCase().padStart(4,"0")}
+function pixCode(px,valor){const f=(id,v)=>id+pad(v.length)+v,v=Number(valor)||0;
+ let s=f("00","01")+f("26",f("00","br.gov.bcb.pix")+f("01",px.chave))+f("52","0000")+f("53","986")+(v>0?f("54",v.toFixed(2)):"")+f("58","BR")+
+  f("59",pixAscii(px.nome).slice(0,25).toUpperCase())+f("60",pixAscii(px.cidade).slice(0,15).toUpperCase())+f("62",f("05","***"))+"6304";return s+pixCrc(s)}
 function cobMsg(){try{return localStorage.getItem(COB_KEY)||COB_PADRAO}catch(e){return COB_PADRAO}}
 function cobDue(c,now){const Y=now.getFullYear(),M=now.getMonth(),last=new Date(Y,M+1,0).getDate();return new Date(Y,M,Math.min(c.due_day,last),12)}
 function cobText(c,due,diff,mesNome){const dt=pad(due.getDate())+"/"+pad(due.getMonth()+1),v=diff===0?dt+" (hoje)":diff===1?dt+" (amanhã)":dt;
- return cobMsg().replace(/\{nome\}/g,c.name).replace(/\{valor\}/g,FM(c.value)).replace(/\{vencimento\}/g,v).replace(/\{mes\}/g,mesNome)}
+ const px=pixGet();let m=cobMsg();
+ if(px&&px.chave){if(!/\{pix(copia)?\}/.test(m))m+="\n\nPix copia e cola (já com o valor):\n{pixcopia}\n\nOu pela chave Pix: {pix}";
+  m=m.replace(/\{pixcopia\}/g,pixCode(px,c.value)).replace(/\{pix\}/g,px.mostrar||px.chave)}else m=m.replace(/\{pixcopia\}|\{pix\}/g,"");
+ return m.replace(/\{nome\}/g,c.name).replace(/\{valor\}/g,FM(c.value)).replace(/\{vencimento\}/g,v).replace(/\{mes\}/g,mesNome)}
 async function cobPay(c,key,paid){const cur=Array.isArray(c.paid_months)?c.paid_months:[],next=paid?[...new Set([...cur,key])]:cur.filter(m=>m!==key);
  c.paid_months=next;cobRender();const r=await sb.from("clients").update({paid_months:next}).eq("id",c.id);if(r.error){c.paid_months=cur;cobRender();alert("Erro: "+r.error.message)}}
-$("cob-edit").onclick=()=>{const w=$("cob-msgw");w.hidden=!w.hidden;if(!w.hidden){$("cob-msg").value=cobMsg();$("cob-msg").focus()}};
-$("cob-save").onclick=()=>{const t=$("cob-msg").value.trim();try{if(t&&t!==COB_PADRAO)localStorage.setItem(COB_KEY,t);else localStorage.removeItem(COB_KEY)}catch(e){}$("cob-msgw").hidden=true;cobRender()};
+$("cob-edit").onclick=()=>{const w=$("cob-msgw");w.hidden=!w.hidden;if(!w.hidden){$("cob-msg").value=cobMsg();const px=pixGet()||{};$("pix-tipo").value=px.tipo||"cpf";$("pix-chave").value=px.mostrar||"";$("pix-nome").value=px.nome||"";$("pix-cidade").value=px.cidade||"";$("pix-err").textContent="";(px.chave?$("cob-msg"):$("pix-chave")).focus()}};
+$("cob-save").onclick=()=>{const t=$("cob-msg").value.trim(),pe=x=>$("pix-err").textContent=x,tipo=$("pix-tipo").value,raw=$("pix-chave").value.trim();
+ if(raw){const chave=pixChave(tipo,raw);if(!chave)return pe({cpf:"CPF ou CNPJ inválido. Confira os números.",tel:"Celular inválido. Use DDD + número, ex.: (46) 99972-7355.",email:"E-mail inválido.",aleatoria:"Chave aleatória inválida. Ela tem o formato 123e4567-e89b-12d3-a456-426614174000."}[tipo]);
+  const nome=pixAscii($("pix-nome").value),cidade=pixAscii($("pix-cidade").value);if(!nome)return pe("Informe o nome de quem recebe, como aparece no banco.");if(!cidade)return pe("Informe a cidade.");
+  try{localStorage.setItem(PIX_KEY,JSON.stringify({tipo,chave,mostrar:raw,nome:$("pix-nome").value.trim(),cidade:$("pix-cidade").value.trim()}))}catch(e){}}
+ else{try{localStorage.removeItem(PIX_KEY)}catch(e){}}try{if(t&&t!==COB_PADRAO)localStorage.setItem(COB_KEY,t);else localStorage.removeItem(COB_KEY)}catch(e){}$("cob-msgw").hidden=true;cobRender()};
 $("cob-reset").onclick=()=>{$("cob-msg").value=COB_PADRAO};
 function cobRender(){const wn=$("cob-warn"),card=$("cob");wn.textContent="";
  if(S.cobErr){card.hidden=true;wn.appendChild(mk("div","pnote","Para usar as cobranças pelo WhatsApp, rode o arquivo cobranca.sql no SQL Editor do Supabase e recarregue o app."));return}
@@ -769,7 +792,8 @@ function cobRender(){const wn=$("cob-warn"),card=$("cob");wn.textContent="";
  const sm=$("cob-sum");sm.textContent="";if(withDay.length){const l=mk("div","cobsum"),b=mk("b",0,FM(rec));l.append(b,mk("span",0,"recebidos de "+FM(tot)+" no mês"));
   const ps=mk("div","pills");ps.style.marginLeft="auto";if(nl)ps.appendChild(pill(nl+(nl===1?" atrasado":" atrasados"),"bad"));if(nt)ps.appendChild(pill(nt+(nt===1?" vence hoje":" vencem hoje"),"warn"));
   if(!nl&&!nt&&rec>=tot)ps.appendChild(pill("Tudo pago","ok"));l.appendChild(ps);
-  const bar=mk("div","cobbar"),f=mk("i");bar.appendChild(f);sm.append(l,bar);growP(f,"cob-bar",tot?rec/tot*100:0,"width")}
+  const bar=mk("div","cobbar"),f=mk("i");bar.appendChild(f);sm.append(l,bar);growP(f,"cob-bar",tot?rec/tot*100:0,"width");
+  if(!(pixGet()||{}).chave){const n=mk("p","note","Seu Pix ainda não está cadastrado neste aparelho. Toque em “Mensagem e Pix” para ele ir junto na cobrança.");n.style.margin="4px 0 0";sm.appendChild(n)}}
  const el=$("cob-list");el.textContent="";
  const G=[["late","Atrasados"],["today","Vencem hoje"],["soon","Próximos 7 dias"],["later","Mais adiante no mês"],["paid","Pagos"]];
  G.forEach(([g,lab])=>{const a=rows.filter(r=>r.g===g);if(!a.length)return;el.appendChild(mk("div","fday",lab));
