@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Cleam Digital · Prospecção</title>
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0a0a0a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Cleam"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lexend:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--bg:#fafafa;--sf:#fff;--s2:#f1f1f1;--ink:#0a0a0a;--mute:#6b6b6b;--line:#e4e4e4}
@@ -348,6 +348,11 @@ button,nav,.chip,.seg button,.st,.mfab,.fab{-webkit-user-select:none;user-select
  <input id="splace" list="plnames" placeholder="Comércio (opcional, escolha da lista)"><input id="sdesc" placeholder="Descrição (opcional)">
  <div class="two"><input id="sdate" type="date" title="Data da venda"><select id="sseller" hidden></select></div>
  <div class="seg" id="smt"></div><div class="err" id="serr"></div><button class="btn w big" id="sadd">Registrar venda</button></div></div>
+<div class="pop center" id="recdlg" hidden><div class="sheet" role="dialog" aria-label="Comprovante de pagamento">
+ <div class="ch"><h3 style="font-size:18px">Comprovante de pagamento</h3><button class="xbtn" id="rec-close" aria-label="Fechar">×</button></div>
+ <img id="rec-img" alt="Comprovante de pagamento" style="display:block;width:100%;max-height:56vh;object-fit:contain;border-radius:12px;background:var(--s2);margin-bottom:12px">
+ <p class="note" id="rec-note"></p>
+ <div class="acts"><button class="btn g" id="rec-down" type="button">Baixar imagem</button><button class="btn" id="rec-send" type="button">Enviar pelo WhatsApp</button></div></div></div>
 <div class="pop center" id="clidlg" hidden><div class="sheet" role="dialog" aria-label="Cliente">
  <div class="ch"><h3 id="ct" style="font-size:18px">Novo cliente</h3><button class="xbtn" id="cclose" aria-label="Fechar">×</button></div>
  <input id="cname" placeholder="Nome do cliente">
@@ -772,7 +777,7 @@ function cobText(c,due,diff,mesNome){const dt=pad(due.getDate())+"/"+pad(due.get
   m=m.replace(/\{pixcopia\}/g,pixCode(px,c.value)).replace(/\{pix\}/g,px.mostrar||px.chave)}else m=m.replace(/\{pixcopia\}|\{pix\}/g,"");
  return m.replace(/\{nome\}/g,c.name).replace(/\{valor\}/g,FM(c.value)).replace(/\{vencimento\}/g,v).replace(/\{mes\}/g,mesNome)}
 async function cobPay(c,key,paid){const cur=Array.isArray(c.paid_months)?c.paid_months:[],next=paid?[...new Set([...cur,key])]:cur.filter(m=>m!==key);
- c.paid_months=next;cobRender();const r=await sb.from("clients").update({paid_months:next}).eq("id",c.id);if(r.error){c.paid_months=cur;cobRender();alert("Erro: "+r.error.message)}}
+ c.paid_months=next;cobRender();const r=await sb.from("clients").update({paid_months:next}).eq("id",c.id);if(r.error){c.paid_months=cur;cobRender();alert("Erro: "+r.error.message);return}if(paid)openRec(c,key)}
 $("cob-edit").onclick=()=>{const w=$("cob-msgw");w.hidden=!w.hidden;if(!w.hidden){$("cob-msg").value=cobMsg();const px=pixGet()||{};$("pix-tipo").value=px.tipo||"cpf";$("pix-chave").value=px.mostrar||"";$("pix-nome").value=px.nome||"";$("pix-cidade").value=px.cidade||"";$("pix-err").textContent="";(px.chave?$("cob-msg"):$("pix-chave")).focus()}};
 $("cob-save").onclick=()=>{const t=$("cob-msg").value.trim(),pe=x=>$("pix-err").textContent=x,tipo=$("pix-tipo").value,raw=$("pix-chave").value.trim();
  if(raw){const chave=pixChave(tipo,raw);if(!chave)return pe({cpf:"CPF ou CNPJ inválido. Confira os números.",tel:"Celular inválido. Use DDD + número, ex.: (46) 99972-7355.",email:"E-mail inválido.",aleatoria:"Chave aleatória inválida. Ela tem o formato 123e4567-e89b-12d3-a456-426614174000."}[tipo]);
@@ -804,9 +809,45 @@ function cobRender(){const wn=$("cob-warn"),card=$("cob");wn.textContent="";
    const ax=mk("div","cobx");
    if(!paid){if(waNum(c.phone).length>=12){const w=mk("a","cbtn wa","Cobrar no WhatsApp");w.href="https://wa.me/"+waNum(c.phone)+"?text="+encodeURIComponent(cobText(c,due,diff,mesNome));w.target="_blank";w.rel="noopener";ax.appendChild(w)}
     else{const n=mk("button","chip","Adicionar WhatsApp");n.type="button";n.onclick=()=>openCli(c);ax.appendChild(n)}}
-   const pb=mk("button","chip"+(paid?"":" on"),paid?"Desfazer":"Marcar pago");pb.type="button";pb.onclick=()=>cobPay(c,key,!paid);ax.appendChild(pb);
+   const pb=mk("button","chip"+(paid?"":" on"),paid?"Desfazer":"Marcar pago");pb.type="button";pb.onclick=()=>cobPay(c,key,!paid);if(paid){const rb=mk("button","chip on","Comprovante");rb.type="button";rb.onclick=()=>openRec(c,key);ax.appendChild(rb)}ax.appendChild(pb);
    r.append(d,tx,ax);el.appendChild(r)})});
  if(noDay.length){const p=mk("p","note",(noDay.length===1?"1 cliente mensal está":noDay.length+" clientes mensais estão")+" sem dia de vencimento: "+noDay.map(c=>c.name).join(", ")+". Toque no cliente abaixo e preencha o dia.");p.style.marginTop="12px";el.appendChild(p)}}
+
+/* ---------- COMPROVANTE ---------- */
+const REC_LOGO="data:image/png;base64,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";S.rec=null;
+async function recDraw(c,key){
+ try{await Promise.all(["700 78px Lexend","600 34px Lexend","400 21px Lexend"].map(f=>document.fonts.load(f)))}catch(e){}
+ const logo=await new Promise(ok=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=REC_LOGO});
+ const W=1080,H=1920,L=108,MW=864,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+ const F=(w,z)=>w+" "+z+"px Lexend, Inter, sans-serif",GR="#717071";
+ x.fillStyle="#e7e6e6";x.fillRect(0,0,W,H);if(logo)x.drawImage(logo,503,115);
+ const wrap=(t,w,z,lh,y,col)=>{x.font=F(w,z);x.fillStyle=col;let line="";for(const wd of t.split(" ")){const tt=line?line+" "+wd:wd;if(line&&x.measureText(tt).width>MW){x.fillText(line,L,y);y+=lh;line=wd}else line=tt}x.fillText(line,L,y);return y};
+ const lab=(t,y)=>{x.font=F(600,34);x.fillStyle="#000";x.fillText(t,L,y)};
+ const val=(t,y,z,min,w=700)=>{x.font=F(w,z);while(z>min&&x.measureText(t).width>MW){z-=2;x.font=F(w,z)}x.fillStyle=GR;x.fillText(t,L,y)};
+ const mes=MESES[parseInt(key.slice(5),10)-1],serv=SV[c.sector]||"Social media";
+ const ty=wrap("Pagamento recebido",700,78,60,437,"#000");x.font=F(700,30);x.fillStyle="#000";x.fillText(BR(today()),L,ty+56);
+ lab("Nome do Empregador",673);val(c.name,742,62,34);
+ lab("Serviço",873);val(serv,918,38,26,600);
+ lab("Descrição",1020);val(serv+" - "+mes,1068,38,26,600);
+ lab("Valor do pagamento",1230);val(FM(c.value),1357,128,70);
+ lab("Parcela de",1444);val("Mensalidade",1494,46,30,600);
+ wrap("*Este comprovante confirma o recebimento do pagamento descrito acima. Guarde este documento para sua referência e comprovação do valor quitado.",400,21,31,1677,"#000");
+ const g=x.createLinearGradient(0,0,W,0);g.addColorStop(0,"#ff0a00");g.addColorStop(.5,"#ff4600");g.addColorStop(1,"#ffb300");x.fillStyle=g;x.fillRect(0,1890,W,30);
+ return new Promise(ok=>cv.toBlob(ok,"image/png"))}
+async function openRec(c,key){if(S.rec&&S.rec.url)URL.revokeObjectURL(S.rec.url);S.rec=null;$("rec-img").removeAttribute("src");$("rec-note").textContent="Gerando o comprovante…";$("recdlg").hidden=false;
+ const blob=await recDraw(c,key);if(!blob){$("rec-note").textContent="Não foi possível gerar a imagem neste navegador.";return}
+ const slug=norm(c.name).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"cliente";
+ S.rec={c,key,blob,url:URL.createObjectURL(blob),name:"comprovante-"+slug+"-"+key+".png"};$("rec-img").src=S.rec.url;
+ $("rec-note").textContent=waNum(c.phone).length>=12?"Toque em “Enviar pelo WhatsApp” para mandar a imagem para "+c.name+".":"Este cliente não tem WhatsApp cadastrado. Baixe a imagem e envie por onde preferir."}
+function recDown(){const a=mk("a");a.href=S.rec.url;a.download=S.rec.name;document.body.appendChild(a);a.click();a.remove()}
+$("rec-down").onclick=()=>{if(S.rec)recDown()};
+$("rec-send").onclick=async()=>{const R=S.rec;if(!R)return;const c=R.c,mes=MESES[parseInt(R.key.slice(5),10)-1];
+ const txt="Olá, "+c.name+"! Recebemos o pagamento da mensalidade de "+mes+", no valor de "+FM(c.value)+". Segue o comprovante. Obrigado!";
+ const f=new File([R.blob],R.name,{type:"image/png"});
+ if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:txt})}catch(e){}return}
+ recDown();if(waNum(c.phone).length>=12)window.open("https://wa.me/"+waNum(c.phone)+"?text="+encodeURIComponent(txt),"_blank","noopener");
+ $("rec-note").textContent="A imagem foi baixada. Anexe ela na conversa do WhatsApp que abriu."};
+$("rec-close").onclick=()=>$("recdlg").hidden=true;$("recdlg").onclick=e=>{if(e.target.id==="recdlg")$("recdlg").hidden=true};
 
 /* ---------- PLANOS E COMISSÕES ---------- */
 const PK={plano:"Plano",produto:"Produto"},PR={mensal:"Todo mês",unica:"Só uma vez"};
@@ -1003,7 +1044,7 @@ function acctRender(){const me=S.me,a=$("a-av");a.textContent=ini(me.name);a.sty
  [[mo.length,"vendas no mês"],[FM(sumv(mine)),"vendido no total"],[S.pl.filter(p=>p.sold_by===me.id).length,"comércios fechados"],[vm.length,"visitas no mês"]].forEach(([v,l])=>{const d=mk("div","stat");d.append(mk("b",0,String(v)),mk("span",0,l));stt.appendChild(d)})}
 $("acctbtn").onclick=()=>{$("acct").hidden=false;acctRender()};$("acct").onclick=e=>{if(e.target.id==="acct")$("acct").hidden=true};
 $("a-close").onclick=()=>$("acct").hidden=true;$("a-sales").onclick=()=>{$("acct").hidden=true;go("sales")};
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("acct").hidden=true;$("saledlg").hidden=true;$("clidlg").hidden=true;$("findlg").hidden=true}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){$("acct").hidden=true;$("saledlg").hidden=true;$("clidlg").hidden=true;$("findlg").hidden=true;$("recdlg").hidden=true}});
 
 /* ---------- PAINEL ---------- */
 Object.assign(SVI,{up:'<path d="M12 19V5M5 12l7-7 7 7"/>',down:'<path d="M12 5v14M19 12l-7 7-7-7"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'});
